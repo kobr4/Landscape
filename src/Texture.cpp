@@ -31,22 +31,30 @@ void Texture::do_register() {
 
 void Texture::blur() { 
 	for (int i = 0;i < this->width;i++) { 
-		for (int j = 1;j < this->height-1;j++) {
-			unsigned int offset = i+ j*this->width;
-			this->pixels[offset*4] = (this->pixels[(offset-this->width)*4] + this->pixels[(offset+this->width)*4])/2;
-			this->pixels[offset*4+1] = (this->pixels[(offset-this->width)*4+1] + this->pixels[(offset+this->width)*4+1])/2;
-			this->pixels[offset*4+2] = (this->pixels[(offset-this->width)*4+2] + this->pixels[(offset+this->width)*4+2])/2;
-			this->pixels[offset*4+3] = (this->pixels[(offset-this->width)*4+3] + this->pixels[(offset+this->width)*4+3])/2;
+		for (int j = 0;j < this->height;j++) {
+			unsigned int offset = i + j *this->width;
+			int offsetUp = (offset-this->width)*4;
+			int offsetRight = (offset+this->width)*4;
+			if (j == 0) offsetUp = (i + (this->height - 1) * this->width - this->width) * 4;
+			if (j == this->height -1) offsetRight = (i + this->width)*4;
+			this->pixels[offset*4] = (this->pixels[offsetUp] + this->pixels[offsetRight])/2;
+			this->pixels[offset*4+1] = (this->pixels[offsetUp+1] + this->pixels[offsetRight+1])/2;
+			this->pixels[offset*4+2] = (this->pixels[offsetUp+2] + this->pixels[offsetRight+2])/2;
+			this->pixels[offset*4+3] = (this->pixels[offsetUp+3] + this->pixels[offsetRight+3])/2;
 		}
 	}
 
-	for (int i = 1;i < this->width-1;i++) { 
+	for (int i = 0;i < this->width;i++) { 
 		for (int j = 0;j < this->height;j++) {
 			unsigned int offset = i+ j*this->width;
-			this->pixels[offset*4] = (this->pixels[(offset-1)*4] + this->pixels[(offset+1)*4])/2;
-			this->pixels[offset*4+1] = (this->pixels[(offset-1)*4+1] + this->pixels[(offset+1)*4+1])/2;
-			this->pixels[offset*4+2] = (this->pixels[(offset-1)*4+2] + this->pixels[(offset+1)*4+2])/2;
-			this->pixels[offset*4+3] = (this->pixels[(offset-1)*4+3] + this->pixels[(offset+1)*4+3])/2;
+			int offsetLeft = (offset-1)*4;
+			int offsetRight = (offset+1)*4;
+			if (offset == 0)  offsetLeft = (this->width - 1) + (this->height - 1) * this->width;
+			if (offset ==  (this->width - 1) + (this->height - 1) * this->width) offsetRight = 0;
+			this->pixels[offset*4] = (this->pixels[offsetLeft] + this->pixels[offsetRight])/2;
+			this->pixels[offset*4+1] = (this->pixels[offsetLeft+1] + this->pixels[offsetRight+1])/2;
+			this->pixels[offset*4+2] = (this->pixels[offsetLeft+2] + this->pixels[offsetRight+2])/2;
+			this->pixels[offset*4+3] = (this->pixels[offsetLeft+3] + this->pixels[offsetRight+3])/2;
 		}
 	}
 }

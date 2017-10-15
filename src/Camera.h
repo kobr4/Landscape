@@ -43,7 +43,7 @@ class Camera {
 		//Given a specific moving direction, the camera will be moved in the appropriate direction
 		//For a spherical camera this will be around the look_at point
 		//For a free camera a delta will be computed for the direction of movement.
-		void Move(CameraDirection dir, float factor = 1.0f);
+		void Move(CameraDirection dir);
 		//Change the pitch (up, down) for the free camera
 		void ChangePitch(float degrees);
 		//Change heading (left, right) for the free camera
@@ -125,6 +125,7 @@ class Camera {
 		glm::mat4 MVP;
 
 		void UpdateInput();
+		float speed;
 private :
 
 	static const int deadzone;

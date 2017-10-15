@@ -21,9 +21,10 @@ Camera::Camera() {
 	yjaxis = 0;
 	zjaxis = 0;
 	wjaxis = 0;
-	near_clip = 1.0f;
-	far_clip = 100.0f;
+	near_clip = 0.01f;
+	far_clip = 10000.0f;
 	aspect = 16.0/9.0;
+	speed = 20.f;
 
 }
 Camera::~Camera() {
@@ -122,7 +123,8 @@ void Camera::SetClipping(double near_clip_distance, double far_clip_distance) {
 	far_clip = far_clip_distance;
 }
 
-void Camera::Move(CameraDirection dir, float factor) {
+void Camera::Move(CameraDirection dir) {
+	float factor = speed;
 	if (camera_mode == FREE) {
 		switch (dir) {
 			case UP:
@@ -254,7 +256,7 @@ glm::vec3 Camera::getPosition() {
 }
 
 void Camera::UpdateInput() {
-
+	/*
 	if (xjaxis < -deadzone) {
 		this->Move(CameraDirection::LEFT, -(float)(xjaxis)/32768.f);
 	} else if (xjaxis > deadzone){
@@ -269,11 +271,12 @@ void Camera::UpdateInput() {
 
 	if (zjaxis != 0 && wjaxis != 0) {
 		this->Move2DJoy(zjaxis/500,wjaxis/500);
+		
 	}
+	*/
 }
 
 void Camera::handleEvent(SDL_Event event) {
-	float factor = 10.f;
 	switch( event.type )
 	{
 		case SDL_KEYDOWN:
@@ -282,10 +285,10 @@ void Camera::handleEvent(SDL_Event event) {
 				case SDLK_SPACE :
 					break;
 				case SDLK_UP:
-					this->Move(CameraDirection::FORWARD,factor);
+					this->Move(CameraDirection::FORWARD);
 					break;
 				case SDLK_DOWN:
-					this->Move(CameraDirection::BACK,factor);
+					this->Move(CameraDirection::BACK);
 					break;
 				case SDLK_LEFT:
 					this->Move(CameraDirection::LEFT);

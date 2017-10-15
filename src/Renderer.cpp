@@ -87,6 +87,7 @@ Renderable * sphereRenderable;
 Shader * g_shader_debug;
 float * g_vertexBuffer = NULL;
 Texture * g_textureHeight = TextureGenerator::generatePerlinNoiseGreyscale(4096,4096);
+Renderable  * g_SkySphere = NULL;
 
 SDL_Joystick * g_joystick = NULL; // on crée le joystick
 bool g_collision_detection = true;
@@ -114,6 +115,7 @@ typedef struct T_QUADNODE {
 	float uv1[2];
 	float uv2[2];
 	float drawDistance;
+	float heightFactor;
 } T_QUADNODE;
 
 T_QUADNODE * g_quadnodeList = NULL;
@@ -205,10 +207,18 @@ glm::vec3 bilinearInterpolation(float x, float y, float x1, float x2, float y1, 
 
 }
 
+float getHeightmapInterpolation(Texture * textureHeight, float ut1, float vt1) {
+	unsigned char * heightmap = textureHeight->getPixels();
+	int iU1 = ((int)(ut1 * (float)textureHeight->width)) & (textureHeight->width-1); 
+	int iV1 = ((int)(vt1 * (float)textureHeight->height)) & (textureHeight->height -1);
+	float heightFactor1 = ((float)heightmap[(iU1 + iV1 * textureHeight->width) << 2] - 127.f) / 127.f;
+	return heightFactor1;
+}
+
 
 float * generateHeighmap(int size, Texture * textureHeight, 
                          glm::vec3 a,glm::vec3 b,glm::vec3 c,glm::vec3 d,
-                         float u1, float v1, float u2, float v2) {
+                         float u1, float v1, float u2, float v2, float heightFactor) {
     float * vertexBuffer = (float*)malloc(sizeof(float) * size * size * 2 * 5 * 3);
     unsigned char * heightmap = textureHeight->getPixels();
     int vertexIndex = 0;
@@ -225,16 +235,11 @@ float * generateHeighmap(int size, Texture * textureHeight,
 			float ut2 = u1 + ut * (float)(i+1); 
 			float vt2 = v1 + vt * (float)(j+1);
 
-			int iU1 = ((int)(ut1 * (float)textureHeight->width)) % textureHeight->width; 
-			int iV1 = ((int)(vt1 * (float)textureHeight->height)) % textureHeight->height;
-			int iU2 = ((int)(ut2 * (float)textureHeight->width)) % textureHeight->width; 
-			int iV2 = ((int)(vt2 * (float)textureHeight->height)) % textureHeight->height;
-
-			float heightFactor1 = ((float)heightmap[(iU1 + iV1 * textureHeight->width)*4] -127.f) / 127.0 * 20.0;
-			float heightFactor2 = ((float)heightmap[(iU2 + iV1 * textureHeight->width)*4] -127.f) / 127.0 * 20.0;
-			float heightFactor3 = ((float)heightmap[(iU2 + iV2 * textureHeight->width)*4] -127.f) / 127.0 * 20.0;
-			float heightFactor4 = ((float)heightmap[(iU1 + iV2 * textureHeight->width)*4] -127.f) / 127.0 * 20.0;
-
+			float heightFactor1 = getHeightmapInterpolation(textureHeight,ut1,vt1) * heightFactor;
+			float heightFactor2 = getHeightmapInterpolation(textureHeight,ut2,vt1) * heightFactor;
+			float heightFactor3 = getHeightmapInterpolation(textureHeight,ut2,vt2) * heightFactor;
+			float heightFactor4 = getHeightmapInterpolation(textureHeight,ut1,vt2) * heightFactor;
+			
 			glm::vec3 p1sphere = bilinearInterpolation(i,j,0,size,0,size,a,b,c,d);
 			glm::vec3 p2sphere = bilinearInterpolation(i+1,j,0,size,0,size,a,b,c,d);
 			glm::vec3 p3sphere = bilinearInterpolation(i+1,j+1,0,size,0,size,a,b,c,d);
@@ -280,21 +285,21 @@ float *  generateSphere( float radius, unsigned int nbSlices) {
 			for (int k = 0;k < 3;k++) vertexBuffer[count++] = a[k];
 			vertexBuffer[count++] = (float)i/(float)nbSlices;
 			vertexBuffer[count++] = (float)j/(float)nbSlices;
-			for (int k = 0;k < 3;k++) vertexBuffer[count++] = b[k];
-			vertexBuffer[count++] = (float)i/(float)nbSlices;
-			vertexBuffer[count++] = (float)(j+1)/nbSlices;
 			for (int k = 0;k < 3;k++) vertexBuffer[count++] = c[k];
-			vertexBuffer[count++] = (float)(i+1)/nbSlices;
+			vertexBuffer[count++] = (float)(i+1)/(float)nbSlices;
 			vertexBuffer[count++] = (float)(j+1)/nbSlices;
+			for (int k = 0;k < 3;k++) vertexBuffer[count++] = b[k];
+			vertexBuffer[count++] = (float)(i+1)/nbSlices;
+			vertexBuffer[count++] = (float)(j)/nbSlices;
 			for (int k = 0;k < 3;k++) vertexBuffer[count++] = a[k];
 			vertexBuffer[count++] = (float)i/nbSlices;
 			vertexBuffer[count++] = (float)j/nbSlices;
+			for (int k = 0;k < 3;k++) vertexBuffer[count++] = d[k];
+			vertexBuffer[count++] = (float)(i)/nbSlices;
+			vertexBuffer[count++] = (float)(j+1)/nbSlices;	
 			for (int k = 0;k < 3;k++) vertexBuffer[count++] = c[k];
 			vertexBuffer[count++] = (float)(i+1)/nbSlices;
-			vertexBuffer[count++] = (float)(j+1)/nbSlices;	
-			for (int k = 0;k < 3;k++) vertexBuffer[count++] = d[k];
-			vertexBuffer[count++] = (float)(i+1)/nbSlices;
-			vertexBuffer[count++] = (float)j/nbSlices;
+			vertexBuffer[count++] = (float)(j+1)/nbSlices;
 		}
 	}
 
@@ -306,7 +311,7 @@ glm::vec3 computeNormal(glm::vec3 const & a, glm::vec3 const & b, glm::vec3 cons
 }
 
 T_QUADNODE * generateQuadMesh(unsigned int size, Texture * textureHeight, glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d,
-							  float u1, float v1, float u2, float v2, float drawDistance) {
+							  float u1, float v1, float u2, float v2, float drawDistance, float heightFactor) {
 	int quadCount = size * size;
 	T_QUADNODE * quadBuffer = (T_QUADNODE *)malloc(sizeof(T_QUADNODE) * quadCount);
 
@@ -319,25 +324,45 @@ T_QUADNODE * generateQuadMesh(unsigned int size, Texture * textureHeight, glm::v
 		quadBuffer[i].vertexBuffer = NULL;
 		quadBuffer[i].sublodList = NULL;
 	}
-	float ut = (u2 - u1) / (float)size;
-	float vt = (v2 - v1) / (float)size;
+	float utg = (u2 - u1) / (float)size;
+	float vtg = (v2 - v1) / (float)size;
+
+	float ut = (1.f - 0.f) / (float)size;
+	float vt = (1.f - 0.f) / (float)size;
 	unsigned int count = 0;
 	for (int i = 0;i < size;i++) {
 		for (int j = 0;j < size;j++) {
 			int hmapSize = 16;
 			float v[] = { (float)i/size, (float)j/size, (float)(i+1)/size,  (float)(j+1)/size};
 
-			float ut1 = u1 + ut * (float)i; 
-			float vt1 = v1 + vt * (float)j;
-			float ut2 = u1 + ut * (float)(i+1); 
-			float vt2 = v1 + vt * (float)(j+1);
+			float ut1 = 0.f + ut * (float)i; 
+			float vt1 = 0.f + vt * (float)j;
+			float ut2 = 0.f + ut * (float)(i+1); 
+			float vt2 = 0.f + vt * (float)(j+1);
+
+
+			float ut1g = utg + ut * (float)i; 
+			float vt1g = vtg+ vt * (float)j;
+			float ut2g = utg + ut * (float)(i+1); 
+			float vt2g = vtg + vt * (float)(j+1);
 
 			glm::vec3 p1sphere = bilinearInterpolation(i,j,0,size,0,size,a,b,c,d);
 			glm::vec3 p2sphere = bilinearInterpolation(i+1,j,0,size,0,size,a,b,c,d);
 			glm::vec3 p3sphere = bilinearInterpolation(i+1,j+1,0,size,0,size,a,b,c,d);
 			glm::vec3 p4sphere = bilinearInterpolation(i,j+1,0,size,0,size,a,b,c,d);
 
-			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, p1sphere, p2sphere, p3sphere, p4sphere, ut1, vt1, ut2, vt2);
+			float aHeight = getHeightmapInterpolation(textureHeight,ut1g,vt1g) * heightFactor;
+			float bHeight = getHeightmapInterpolation(textureHeight,ut2g,vt1g) * heightFactor;
+			float cHeight = getHeightmapInterpolation(textureHeight,ut2g,vt2g) * heightFactor;
+			float dHeight = getHeightmapInterpolation(textureHeight,ut1g,vt2g) * heightFactor;
+			p1sphere = p1sphere + glm::normalize(p1sphere) * aHeight;
+			p2sphere = p2sphere + glm::normalize(p2sphere) * bHeight;
+			p3sphere = p3sphere + glm::normalize(p3sphere) * cHeight;
+			p4sphere = p4sphere + glm::normalize(p4sphere) * dHeight;
+
+
+			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, p1sphere, p2sphere, p3sphere, p4sphere, ut1, vt1, ut2, vt2,heightFactor / 8.f);
+
 			quadBuffer[i + j*size].vertexBuffer = vertexBuffer; 
 			quadBuffer[i + j*size].triangleCount = hmapSize * hmapSize * 2;
 			quadBuffer[i + j*size].position = (p1sphere + p2sphere + p3sphere + p4sphere) * 0.25f; 
@@ -351,6 +376,7 @@ T_QUADNODE * generateQuadMesh(unsigned int size, Texture * textureHeight, glm::v
 			quadBuffer[i + j*size].c = p3sphere;
 			quadBuffer[i + j*size].d = p4sphere;
 			quadBuffer[i + j*size].drawDistance = drawDistance;
+			quadBuffer[i + j*size].heightFactor = heightFactor;
 		}
 	}
 
@@ -381,18 +407,29 @@ T_QUADNODE *  generateSphereMesh( float radius, unsigned int nbSlices, Texture *
             float alpha1 = glm::pi<float>()*2  / (nbSlices+1) * (i + 1);
             float beta1 = glm::pi<float>()*2 / nbSlices * (j + 1);
 
+			float v[] = { (float)i/nbSlices, (float)j/nbSlices, (float)(i+1)/nbSlices,  (float)(j+1)/nbSlices};
+			
 
+			float heightFactor = 800.f;
 			glm::vec3 a = glm::vec3(radius * sin(alpha) * cos(beta), radius * cos(alpha),radius * sin(alpha) * sin(beta));
             glm::vec3 b = glm::vec3(radius * sin(alpha) * cos(beta1), radius * cos(alpha),radius * sin(alpha) * sin(beta1));
             glm::vec3 c = glm::vec3(radius * sin(alpha1) * cos(beta1), radius * cos(alpha1),radius * sin(alpha1) * sin(beta1));
             glm::vec3 d = glm::vec3(radius * sin(alpha1) * cos(beta), radius * cos(alpha1),radius * sin(alpha1) * sin(beta));
 
-			glm::vec3 normal = computeNormal(a,b,c);
-
-			float v[] = { (float)i/nbSlices, (float)j/nbSlices, (float)(i+1)/nbSlices,  (float)(j+1)/nbSlices};
-			
 			int hmapSize = 16;
-			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, a, b, c, d, v[0], v[1], v[2], v[3]);
+			
+			/*
+			float aHeight = getHeightmapInterpolation(textureHeight,v[0],v[1]) * heightFactor;
+			float bHeight = getHeightmapInterpolation(textureHeight,v[2],v[1]) * heightFactor;
+			float cHeight = getHeightmapInterpolation(textureHeight,v[2],v[3]) * heightFactor;
+			float dHeight = getHeightmapInterpolation(textureHeight,v[1],v[3]) * heightFactor;
+			a = a + glm::normalize(a) * aHeight;
+			b = b + glm::normalize(b) * bHeight;
+			c = c + glm::normalize(c) * cHeight;
+			d = d + glm::normalize(d) * dHeight;			
+*/			
+			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, a, b, c, d, v[0], v[1], v[2], v[3], 0.f);
+
 			quadBuffer[i + j*nbSlices].vertexBuffer = vertexBuffer; 
 			quadBuffer[i + j*nbSlices].triangleCount = hmapSize * hmapSize * 2;
 			quadBuffer[i + j*nbSlices].position = (a + b + c + d) * 0.25f; 
@@ -406,6 +443,7 @@ T_QUADNODE *  generateSphereMesh( float radius, unsigned int nbSlices, Texture *
 			quadBuffer[i + j*nbSlices].c = c;
 			quadBuffer[i + j*nbSlices].d = d;
 			quadBuffer[i + j*nbSlices].drawDistance = 1500.f;
+			quadBuffer[i + j*nbSlices].heightFactor = heightFactor;
 		}
 	}
 
@@ -418,28 +456,34 @@ void Renderer::initializeContent() {
 	srand (time(NULL));
 	float unit = -1.0f;
 	unsigned int size = 16;
+	/*
 	Texture * textureHeight = TextureGenerator::generatePerlinNoiseGreyscale(size,size);
 	textureHeight->blur();
 	textureHeight->blur();
 	textureHeight->blur();
 	textureHeight->blur();
-
-
+	*/
+	g_textureHeight->blur();
+	g_textureHeight->blur();
+	g_textureHeight->blur();
+	g_textureHeight->blur();
+	/*
 	float * vertexBuffer = generateHeighmap(size, unit, textureHeight);
 	Texture * texture = TextureGenerator::generateNormalMap(size,size,textureHeight->getPixels());
 
 	Renderable  * renderable = Renderable::createRenderable(this->shaderTexturing, texture, vertexBuffer, size * size * 2);
+	*/
 
+
+	
+	float * vertexSphere = generateSphere(50000, size);
+
+	
+	g_SkySphere = Renderable::createRenderable(this->shaderTexturing, g_textureHeight, vertexSphere, size * size * 2);
+	
+	//renderableSphere->model = glm::translate(glm::mat4(1.0f),glm::vec3(0.f, 0.f,radius+100.f)); 
 
 	float radius = 6378.f;
-	float * vertexSphere = generateSphere(radius, size);
-	g_textureHeight->blur();
-	g_textureHeight->blur();
-	g_textureHeight->blur();
-	g_textureHeight->blur();
-	Renderable  * renderableSphere = Renderable::createRenderable(this->shaderTexturing, g_textureHeight, vertexSphere, size * size * 2);
-	renderableSphere->model = glm::translate(glm::mat4(1.0f),glm::vec3(0.f, 0.f,radius+100.f)); 
-
 	g_quadnodeList = generateSphereMesh(radius,size,g_textureHeight);
 
 	for (int i = 0;i < size*size;i++) {
@@ -550,7 +594,7 @@ void Renderer::init(unsigned int screenWidth, unsigned int screenHeight, bool fu
 	//g_shader_debug->load_vertex("vertex.gl");
 
 	camera = new Camera();
-	camera->SetClipping(0.1f,30000.f);
+	camera->SetClipping(1.f,200000.f);
 	camera->SetPosition(glm::vec3(-3000.0f,7000.0f,-3000.0f));
 	camera->SetLookAt(glm::vec3(0.0f,0.0f,0.0f));
 
@@ -809,12 +853,13 @@ void renderQuadNode(T_QUADNODE * quadNodeList, Camera * camera, Shader * shader)
 
 				if (glm::distance(quadNodeList[i].position, camera->camera_position) < quadNodeList[i].drawDistance) {
 					printf("Generating sub lod details\n");
-					camera->far_clip = quadNodeList[i].drawDistance * 2.f;
+					///camera->far_clip = quadNodeList[i].drawDistance * 2.f;
+					camera->speed = quadNodeList[i].drawDistance / 100.f;
 					if (quadNodeList[i].sublodList == NULL) {
 						quadNodeList[i].sublodList = generateQuadMesh(16, g_textureHeight, quadNodeList[i].a, quadNodeList[i].b, 
 							quadNodeList[i].c, quadNodeList[i].d, quadNodeList[i].uv1[0],quadNodeList[i].uv1[1],
 								quadNodeList[i].uv2[0],quadNodeList[i].uv2[1],
-								quadNodeList[i].drawDistance / 16.f
+								quadNodeList[i].drawDistance / 16.f, quadNodeList[i].heightFactor / 8.f
 							);
 						quadNodeList[i].sublodSize = 16;
 						for (int j = 0;j < 16*16;j++) {
@@ -842,6 +887,7 @@ void renderQuadNode(T_QUADNODE * quadNodeList, Camera * camera, Shader * shader)
 void Renderer::loopHook() {
 	g_renderableList.clear();
 	renderQuadNode(g_quadnodeList,this->camera, this->shaderTexturing);
+	if (g_SkySphere != NULL) g_renderableList.push_back(g_SkySphere);
 }
 
 
