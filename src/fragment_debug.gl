@@ -1,0 +1,7 @@
+"varying vec4 vColor;\
+varying vec2 v_texture_coordinate;\
+uniform sampler2D my_color_texture;\
+uniform sampler2D my_lightmap_texture;\
+void main(void) {\
+	gl_FragColor = vColor * texture2D(my_color_texture, v_texture_coordinate)* texture2D(my_lightmap_texture, v_texture_coordinate);\
+}"

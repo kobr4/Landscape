@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# VS solution file
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+#Debug / Release directory
+Debug/
+Release/

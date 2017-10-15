@@ -1,0 +1,12 @@
+"uniform mat4 u_MVMatrix;\
+uniform mat4 u_PMatrix;\
+uniform vec4 u_CVector;\
+varying vec4 vColor;\
+varying vec2 v_texture_coordinate;\
+attribute vec4 a_Position;\
+attribute vec2 a_TexCoord;\
+void main(void) {\
+	vColor = u_CVector;\
+	gl_Position = u_PMatrix * u_MVMatrix * a_Position;\
+	v_texture_coordinate = a_TexCoord;\
+}"
