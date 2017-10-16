@@ -1,0 +1,8 @@
+"varying vec4 vColor;\
+varying vec2 v_texture_coordinate;\
+uniform sampler2D my_color_texture;\
+uniform sampler2D my_lightmap_texture;\
+varying vec4 v_Position;\
+void main(void) {\
+	gl_FragColor = vColor * (6500.0 - length(v_Position)) / 300.0 * vec4(0.698, 0.133, 0.133,1.0);\
+}"

@@ -68,6 +68,14 @@ const char * fragment_debug =
 #include "fragment_debug.gl"
 ;
 
+const char * fragment_skybox =
+#include "fragment_skybox.gl"
+;
+
+const char * fragment_terrain =
+#include "fragment_terrain.gl"
+;
+
 unsigned char g_texdata[]= { 255, 255, 255, 255, 255, 255, 255, 255,
 							255, 255, 255, 255, 255, 255, 255, 255};
 
@@ -84,7 +92,10 @@ SDL_Surface* CreateSurface(Uint32 flags,int width,int height,const SDL_Surface* 
 //Renderable * g_renderable;
 std::vector<Renderable*> g_renderableList = std::vector<Renderable*>();
 Renderable * sphereRenderable;
-Shader * g_shader_debug;
+
+Shader * g_shader_skybox;
+Shader * g_shader_terrain;
+
 float * g_vertexBuffer = NULL;
 Texture * g_textureHeight = TextureGenerator::generatePerlinNoiseGreyscale(4096,4096);
 Renderable  * g_SkySphere = NULL;
@@ -456,32 +467,16 @@ void Renderer::initializeContent() {
 	srand (time(NULL));
 	float unit = -1.0f;
 	unsigned int size = 16;
-	/*
-	Texture * textureHeight = TextureGenerator::generatePerlinNoiseGreyscale(size,size);
-	textureHeight->blur();
-	textureHeight->blur();
-	textureHeight->blur();
-	textureHeight->blur();
-	*/
-	g_textureHeight->blur();
-	g_textureHeight->blur();
-	g_textureHeight->blur();
-	g_textureHeight->blur();
-	/*
-	float * vertexBuffer = generateHeighmap(size, unit, textureHeight);
-	Texture * texture = TextureGenerator::generateNormalMap(size,size,textureHeight->getPixels());
 
-	Renderable  * renderable = Renderable::createRenderable(this->shaderTexturing, texture, vertexBuffer, size * size * 2);
-	*/
+	g_textureHeight->blur();
+	g_textureHeight->blur();
+	g_textureHeight->blur();
+	g_textureHeight->blur();
 
-
-	
 	float * vertexSphere = generateSphere(50000, size);
 
 	
 	g_SkySphere = Renderable::createRenderable(this->shaderTexturing, g_textureHeight, vertexSphere, size * size * 2);
-	
-	//renderableSphere->model = glm::translate(glm::mat4(1.0f),glm::vec3(0.f, 0.f,radius+100.f)); 
 
 	float radius = 6378.f;
 	g_quadnodeList = generateSphereMesh(radius,size,g_textureHeight);
@@ -521,13 +516,8 @@ void Renderer::init(unsigned int screenWidth, unsigned int screenHeight, bool fu
     atexit(SDL_Quit);
 
     // Version d'OpenGL
-      
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-      
-    //SDL_GL_SetSwapInterval(0); 
-    // Double Buffer
-      
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
@@ -586,12 +576,13 @@ void Renderer::init(unsigned int screenWidth, unsigned int screenHeight, bool fu
 	this->spriteTextSurface = new Sprite(textSurfaceTexture,(float)this->screenWidth,(float)this->screenHeight,0,1,1,0);
 	this->fbDrawing = NULL;
 
-	g_shader_debug = new Shader();
-	g_shader_debug->load_fragment_from_string(fragment_debug);
-	g_shader_debug->load_vertex_from_string(vertex);
+	g_shader_skybox = new Shader();
+	g_shader_skybox->load_fragment_from_string(fragment_skybox);
+	g_shader_skybox->load_vertex_from_string(vertex);
 	
-	//g_shader_debug->load_fragment("fragment_debug.gl");
-	//g_shader_debug->load_vertex("vertex.gl");
+	g_shader_terrain = new Shader();
+	g_shader_terrain->load_fragment_from_string(fragment_terrain);
+	g_shader_terrain->load_vertex_from_string(vertex);
 
 	camera = new Camera();
 	camera->SetClipping(1.f,200000.f);
@@ -599,7 +590,6 @@ void Renderer::init(unsigned int screenWidth, unsigned int screenHeight, bool fu
 	camera->SetLookAt(glm::vec3(0.0f,0.0f,0.0f));
 
 	OutputConsole::setRenderer(this);
-
 
 	UIHeader * headWidget = new UIHeader();
 
@@ -773,6 +763,8 @@ void Renderer::drawScene(Shader * shader, FrameBuffer * frameBuffer) {
 	glClearColor(0, 0, 0.1, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
+	this->loopHook();
+
 	shader->bind();
 
 	for (unsigned int i = 0;i < g_renderableList.size() && g_asyncload;i++) {
@@ -869,11 +861,6 @@ void renderQuadNode(T_QUADNODE * quadNodeList, Camera * camera, Shader * shader)
 						}
 					} 
 						
-					/*
-					for (int j = 0;j < 16*16;j++) {
-						g_renderableList.push_back(quadNodeList[i].sublodList[j].renderable);
-					}
-					*/
 					renderQuadNode(quadNodeList[i].sublodList, camera, shader);
 				} else {
 					g_renderableList.push_back(quadNodeList[i].renderable);
@@ -887,7 +874,13 @@ void renderQuadNode(T_QUADNODE * quadNodeList, Camera * camera, Shader * shader)
 void Renderer::loopHook() {
 	g_renderableList.clear();
 	renderQuadNode(g_quadnodeList,this->camera, this->shaderTexturing);
-	if (g_SkySphere != NULL) g_renderableList.push_back(g_SkySphere);
+
+	g_shader_skybox->bind();
+	g_shader_skybox->setProjectionAndModelViewMatrix(glm::value_ptr(camera->projection),glm::value_ptr(camera->view));
+	g_shader_skybox->bind_attributes();	
+	
+	if (g_SkySphere != NULL) g_SkySphere->draw();
+	g_shader_skybox->unbind();
 }
 
 
@@ -898,7 +891,10 @@ void Renderer::draw()
 	camera->Update();
 	glEnable(GL_DEPTH_TEST);
 	this->shaderTexturing->setProjectionAndModelViewMatrix(glm::value_ptr(camera->projection),glm::value_ptr(camera->view));
-	drawScene(this->shaderTexturing,this->fbDrawing);
+	
+	g_shader_terrain->setProjectionAndModelViewMatrix(glm::value_ptr(camera->projection),glm::value_ptr(camera->view));
+	drawScene(g_shader_terrain,this->fbDrawing);
+	
 	this->drawUI();
 	this->fbDrawing->unbind(screenWidth,screenHeight);
 
@@ -925,7 +921,7 @@ void Renderer::loop()
 			}
 		}
 
-		this->loopHook();
+
 
 
 		while( SDL_PollEvent( &event ) )

@@ -5,8 +5,10 @@ varying vec4 vColor;\
 varying vec2 v_texture_coordinate;\
 attribute vec4 a_Position;\
 attribute vec2 a_TexCoord;\
+varying vec4 v_Position;\
 void main(void) {\
 	vColor = u_CVector;\
 	gl_Position = u_PMatrix * u_MVMatrix * a_Position;\
 	v_texture_coordinate = a_TexCoord;\
+	v_Position = a_Position;\
 }"

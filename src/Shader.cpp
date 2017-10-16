@@ -228,6 +228,11 @@ void Shader::bind_attributes() {
 	glUniform1i(this->texture1Handle,1);
 }
 
+void Shader::bind_custom_vector_attibute(char * name, float * vector) {
+	int ulocation = glGetUniformLocation(this->programHandle, name);
+	glUniform4fv(ulocation, 1, vector);
+}
+
 void Shader::bind()
 {
 	if (programHandle == 0) {
