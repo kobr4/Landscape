@@ -62,5 +62,5 @@ public :
 	void setProjectionMatrixToOrtho(unsigned int width, unsigned int height);
 	void setModelViewMatrixToIdentity();
 	void setProjectionAndModelViewMatrix(float * P,float * MV);
-	void bind_custom_vector_attibute(char * name, float * vector);
+	void bind_custom_vector_attibute(char * name, const float * vector);
 };

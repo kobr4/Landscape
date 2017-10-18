@@ -63,6 +63,10 @@ const char * fragment_lightmap_texturing =
 const char * vertex = 
 #include "vertex.gl"
 ;
+
+const char * vertex_terrain = 
+#include "vertex_terrain.gl"
+;
 	
 const char * fragment_debug =
 #include "fragment_debug.gl"
@@ -582,7 +586,7 @@ void Renderer::init(unsigned int screenWidth, unsigned int screenHeight, bool fu
 	
 	g_shader_terrain = new Shader();
 	g_shader_terrain->load_fragment_from_string(fragment_terrain);
-	g_shader_terrain->load_vertex_from_string(vertex);
+	g_shader_terrain->load_vertex_from_string(vertex_terrain);
 
 	camera = new Camera();
 	camera->SetClipping(1.f,200000.f);
@@ -877,6 +881,7 @@ void Renderer::loopHook() {
 
 	g_shader_skybox->bind();
 	g_shader_skybox->setProjectionAndModelViewMatrix(glm::value_ptr(camera->projection),glm::value_ptr(camera->view));
+	g_shader_skybox->bind_custom_vector_attibute("u_CameraPosition",glm::value_ptr(glm::vec4(camera->getPosition(),0)));
 	g_shader_skybox->bind_attributes();	
 	
 	if (g_SkySphere != NULL) g_SkySphere->draw();
@@ -892,9 +897,13 @@ void Renderer::draw()
 	glEnable(GL_DEPTH_TEST);
 	this->shaderTexturing->setProjectionAndModelViewMatrix(glm::value_ptr(camera->projection),glm::value_ptr(camera->view));
 	
+	g_shader_terrain->bind();
 	g_shader_terrain->setProjectionAndModelViewMatrix(glm::value_ptr(camera->projection),glm::value_ptr(camera->view));
+	g_shader_terrain->bind_custom_vector_attibute("u_CameraPosition",glm::value_ptr(glm::vec4(camera->getPosition(),0)));
+	g_shader_terrain->bind_attributes();
 	drawScene(g_shader_terrain,this->fbDrawing);
-	
+	g_shader_terrain->unbind();
+
 	this->drawUI();
 	this->fbDrawing->unbind(screenWidth,screenHeight);
 

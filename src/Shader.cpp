@@ -228,8 +228,11 @@ void Shader::bind_attributes() {
 	glUniform1i(this->texture1Handle,1);
 }
 
-void Shader::bind_custom_vector_attibute(char * name, float * vector) {
+void Shader::bind_custom_vector_attibute(char * name, const float * vector) {
 	int ulocation = glGetUniformLocation(this->programHandle, name);
+	if (ulocation == -1) {
+		printf("Error: uniform variable %s not found in shader\n",name);
+	}
 	glUniform4fv(ulocation, 1, vector);
 }
 
@@ -277,9 +280,9 @@ void Shader::do_register() {
 	glShaderSource(this->fragmentShaderHandle, this->f_length,(const GLchar **)this->f_string,this->f_string_length);
 	glCompileShader(this->fragmentShaderHandle);
 
-	glGetShaderiv(this->vertexShaderHandle,GL_COMPILE_STATUS,&status);
+	glGetShaderiv(this->fragmentShaderHandle,GL_COMPILE_STATUS,&status);
 	if (status == GL_FALSE) {
-		glGetShaderInfoLog(this->vertexShaderHandle,2048,&length,buffer);
+		glGetShaderInfoLog(this->fragmentShaderHandle,2048,&length,buffer);
 		puts("Fatal error on fragment shader compilation.");
 		puts(buffer);
 		exit(0);

@@ -3,6 +3,35 @@ varying vec2 v_texture_coordinate;\
 uniform sampler2D my_color_texture;\
 uniform sampler2D my_lightmap_texture;\
 varying vec4 v_Position;\
+uniform vec4 u_CameraPosition;\
+\
+vec4 ResolveColor(in vec4 point) {\
+	vec4 p1 = point;\
+	vec4 p2 = u_CameraPosition;\
+	vec4 p3 = vec4(0,0,0,0);\
+	vec4 d = normalize(p1 - p2);\
+	float r = 6800.0;\
+	float a = dot(d, d);\
+	float b = 2.0 * dot(d, p2 - p3);\
+	float c = dot(p2 - p3, p2 - p3) - r*r;\
+	float test = b*b - 4.0*a*c;\
+	if (test >= 0.0) {\
+		vec4 lightColor = texture2D(my_color_texture, v_texture_coordinate) * vec4(0.698, 0.133, 0.133,1.0);\
+		vec4 fogColor = vec4(0.529, 0.808, 0.922,1.0);\
+		float f = 0.5;\
+		vec4 pc1 = p2 + ((-b + sqrt(test)) / 2 * a) * d;\
+		vec4 pc2 = p2 + ((-b - sqrt(test)) / 2 * a) * d;\
+		if (distance(p2,pc1) < distance(p2,pc2)) {\
+			f = 500.0 / min(distance(pc1,p1),distance(p1,p2));\
+		} else {\
+			f = 500.0 / min(distance(pc2,p1),distance(p1,p2));\
+		}\
+		if (f > 1.0) f = 1.0;\
+		return (1.0 - f)*fogColor + f * lightColor;\
+	} else {\
+		return texture2D(my_color_texture, v_texture_coordinate);\
+	}\
+}\
 void main(void) {\
-	gl_FragColor = vColor * (6500.0 - length(v_Position)) / 300.0 * vec4(0.698, 0.133, 0.133,1.0);\
+	gl_FragColor = ResolveColor(v_Position);\
 }"
