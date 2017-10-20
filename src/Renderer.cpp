@@ -120,6 +120,7 @@ typedef struct T_QUADNODE {
 	unsigned int sublodSize;
 	Renderable * renderable;
 	float * vertexBuffer;
+	unsigned int * indexBuffer;
 	int triangleCount;
 	glm::vec3 normal;
 	glm::vec3 position;
@@ -189,6 +190,18 @@ void addVertex(float * vertexBuffer, int vertexIndex, float x, float y, float z,
 	vertexBuffer[vertexIndex*5+4] = v;
 }
 
+void addVertexNormal(float * vertexBuffer, int vertexIndex, float x, float y, float z, float u, float v, float nx, float ny, float nz) {
+	unsigned int offset = vertexIndex<<3;
+	vertexBuffer[offset+0] = x;
+	vertexBuffer[offset+1] = y;
+	vertexBuffer[offset+2] = z;
+	vertexBuffer[offset+3] = u;
+	vertexBuffer[offset+4] = v;
+	vertexBuffer[offset+5] = nx;
+	vertexBuffer[offset+6] = ny;
+	vertexBuffer[offset+7] = nz;
+}
+
 
 float * generateHeighmap(int size, float unit, Texture * textureHeight) {
 	float * vertexBuffer = (float*)malloc(sizeof(float) * size * size * 2 * 5 * 3);
@@ -231,13 +244,20 @@ float getHeightmapInterpolation(Texture * textureHeight, float ut1, float vt1) {
 }
 
 
+glm::vec3 computeNormal(glm::vec3 const & a, glm::vec3 const & b, glm::vec3 const & c) {
+        return glm::normalize(glm::cross(c - a, b - a));
+}
+
 float * generateHeighmap(int size, Texture * textureHeight, 
                          glm::vec3 a,glm::vec3 b,glm::vec3 c,glm::vec3 d,
-                         float u1, float v1, float u2, float v2, float heightFactor) {
-    float * vertexBuffer = (float*)malloc(sizeof(float) * size * size * 2 * 5 * 3);
+                         float u1, float v1, float u2, float v2, float heightFactor, unsigned int ** indexBuffer ) {
+    float * vertexBuffer = (float*)malloc(sizeof(float) * size * size * 2 * 8 * 3);
+	*indexBuffer =  (unsigned int*)malloc(sizeof(unsigned int) *  size * size * 2 * 3);
+	unsigned int  * indexBufferPtr = *indexBuffer;
+
     unsigned char * heightmap = textureHeight->getPixels();
     int vertexIndex = 0;
-
+	int faceIndex = 0;
     float fSize = (float)size;
 	float ut = (u2 - u1) / fSize;
 	float vt = (v2 - v1) / fSize;	
@@ -265,14 +285,22 @@ float * generateHeighmap(int size, Texture * textureHeight,
 			glm::vec3 p3 = p3sphere + glm::normalize(p3sphere) * heightFactor3;
 			glm::vec3 p4 = p4sphere + glm::normalize(p4sphere) * heightFactor4;
 
-            addVertex(vertexBuffer, vertexIndex++, p1.x, p1.y, p1.z, ut1, vt1);
-            addVertex(vertexBuffer, vertexIndex++, p2.x, p2.y, p2.z, ut2, vt1);
-            addVertex(vertexBuffer, vertexIndex++, p3.x, p3.y, p3.z, ut2, vt2);
 			
-            addVertex(vertexBuffer, vertexIndex++, p1.x, p1.y, p1.z, ut1, vt1);
-            addVertex(vertexBuffer, vertexIndex++, p3.x, p3.y, p3.z, ut2, vt2);
-            addVertex(vertexBuffer, vertexIndex++, p4.x, p4.y, p4.z, ut1, vt2);
-          
+			glm::vec3 n1 = computeNormal(p1, p2, p3);
+			glm::vec3 n2 = computeNormal(p1, p3, p4);
+			glm::vec3 np1 = glm::normalize((n1 + n2)/2.f); 
+
+			indexBufferPtr[faceIndex++] = vertexIndex;
+			indexBufferPtr[faceIndex++] = vertexIndex+1;
+			indexBufferPtr[faceIndex++] = vertexIndex+2;
+			indexBufferPtr[faceIndex++] = vertexIndex;
+			indexBufferPtr[faceIndex++] = vertexIndex+2;
+			indexBufferPtr[faceIndex++] = vertexIndex+3;
+
+            addVertexNormal(vertexBuffer, vertexIndex++, p1.x, p1.y, p1.z, ut1, vt1, np1.x, np1.y, np1.z);
+            addVertexNormal(vertexBuffer, vertexIndex++, p2.x, p2.y, p2.z, ut2, vt1, n1.x, n1.y, n1.z);
+            addVertexNormal(vertexBuffer, vertexIndex++, p3.x, p3.y, p3.z, ut2, vt2, np1.x, np1.y, np1.z);
+			addVertexNormal(vertexBuffer, vertexIndex++, p4.x, p4.y, p4.z, ut1, vt2, n2.x, n2.y, n2.z);
         }
     }
     return vertexBuffer;
@@ -319,10 +347,6 @@ float *  generateSphere( float radius, unsigned int nbSlices) {
 	}
 
 	return vertexBuffer;
-}
-
-glm::vec3 computeNormal(glm::vec3 const & a, glm::vec3 const & b, glm::vec3 const & c) {
-        return glm::normalize(glm::cross(c - a, b - a));
 }
 
 T_QUADNODE * generateQuadMesh(unsigned int size, Texture * textureHeight, glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d,
@@ -375,10 +399,11 @@ T_QUADNODE * generateQuadMesh(unsigned int size, Texture * textureHeight, glm::v
 			p3sphere = p3sphere + glm::normalize(p3sphere) * cHeight;
 			p4sphere = p4sphere + glm::normalize(p4sphere) * dHeight;
 
-
-			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, p1sphere, p2sphere, p3sphere, p4sphere, ut1, vt1, ut2, vt2,heightFactor / 8.f);
+			unsigned int *indexBuffer;
+			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, p1sphere, p2sphere, p3sphere, p4sphere, ut1, vt1, ut2, vt2,heightFactor / 8.f, &indexBuffer);
 
 			quadBuffer[i + j*size].vertexBuffer = vertexBuffer; 
+			quadBuffer[i + j*size].indexBuffer = indexBuffer;
 			quadBuffer[i + j*size].triangleCount = hmapSize * hmapSize * 2;
 			quadBuffer[i + j*size].position = (p1sphere + p2sphere + p3sphere + p4sphere) * 0.25f; 
 			quadBuffer[i + j*size].normal = -glm::normalize(quadBuffer[i + j*size].position);
@@ -411,6 +436,7 @@ T_QUADNODE *  generateSphereMesh( float radius, unsigned int nbSlices, Texture *
 		quadBuffer[i].up = NULL;
 		quadBuffer[i].vertexBuffer = NULL;
 		quadBuffer[i].sublodList = NULL;
+		quadBuffer[i].indexBuffer = NULL;
 	}
 
 	unsigned int count = 0;
@@ -433,19 +459,11 @@ T_QUADNODE *  generateSphereMesh( float radius, unsigned int nbSlices, Texture *
 
 			int hmapSize = 16;
 			
-			/*
-			float aHeight = getHeightmapInterpolation(textureHeight,v[0],v[1]) * heightFactor;
-			float bHeight = getHeightmapInterpolation(textureHeight,v[2],v[1]) * heightFactor;
-			float cHeight = getHeightmapInterpolation(textureHeight,v[2],v[3]) * heightFactor;
-			float dHeight = getHeightmapInterpolation(textureHeight,v[1],v[3]) * heightFactor;
-			a = a + glm::normalize(a) * aHeight;
-			b = b + glm::normalize(b) * bHeight;
-			c = c + glm::normalize(c) * cHeight;
-			d = d + glm::normalize(d) * dHeight;			
-*/			
-			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, a, b, c, d, v[0], v[1], v[2], v[3], 0.f);
+			unsigned int * indexBuffer;
+			float * vertexBuffer = generateHeighmap(hmapSize, textureHeight, a, b, c, d, v[0], v[1], v[2], v[3], 0.f, &indexBuffer);
 
 			quadBuffer[i + j*nbSlices].vertexBuffer = vertexBuffer; 
+			quadBuffer[i + j*nbSlices].indexBuffer = indexBuffer;
 			quadBuffer[i + j*nbSlices].triangleCount = hmapSize * hmapSize * 2;
 			quadBuffer[i + j*nbSlices].position = (a + b + c + d) * 0.25f; 
 			quadBuffer[i + j*nbSlices].normal = -glm::normalize(quadBuffer[i + j*nbSlices].position);
@@ -486,13 +504,14 @@ void Renderer::initializeContent() {
 	g_quadnodeList = generateSphereMesh(radius,size,g_textureHeight);
 
 	for (int i = 0;i < size*size;i++) {
-		g_quadnodeList[i].renderable = Renderable::createRenderable(this->shaderTexturing, g_textureHeight, g_quadnodeList[i].vertexBuffer, g_quadnodeList[i].triangleCount);
+		T_QUADNODE * quad = &g_quadnodeList[i];
+		g_quadnodeList[i].renderable = Renderable::createRenderable(this->shaderTexturing, g_textureHeight, quad->vertexBuffer, quad->triangleCount, quad->indexBuffer, 8);
 	}
 
 	g_asyncload = true;
 }
 
-static int AsyncInitThread(void *ptr)
+static int AsyncInitThread(void *ptr) 
 {
 	Renderer * renderer = (Renderer*)ptr;
 	renderer->initializeContent();
@@ -861,7 +880,7 @@ void renderQuadNode(T_QUADNODE * quadNodeList, Camera * camera, Shader * shader)
 						for (int j = 0;j < 16*16;j++) {
 							quadNodeList[i].sublodList[j].renderable = 
 								Renderable::createRenderable(shader, g_textureHeight, quadNodeList[i].sublodList[j].vertexBuffer, 
-								quadNodeList[i].sublodList[j].triangleCount);
+								quadNodeList[i].sublodList[j].triangleCount, quadNodeList[i].sublodList[j].indexBuffer, 8);
 						}
 					} 
 						

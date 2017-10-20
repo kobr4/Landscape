@@ -1,10 +1,11 @@
 #include "BufferData.h"
 #include <GL/glew.h>
 
-BufferData::BufferData(void * bufferData,int bufferSize) {
+BufferData::BufferData(void * bufferData,int bufferSize, GLenum target) {
 	this->bufferData = bufferData;
 	this->bufferSize = bufferSize;
 	this->bufferName = 0;
+	this->target = target;
 }
 
 void BufferData::do_register() {
@@ -13,17 +14,17 @@ void BufferData::do_register() {
 }
 
 void BufferData::updateBuffer() {
-	glBindBuffer(GL_ARRAY_BUFFER, this->bufferName);
-	glBufferData(GL_ARRAY_BUFFER,this->bufferSize,this->bufferData,GL_STATIC_DRAW);   
+	glBindBuffer(target, this->bufferName);
+	glBufferData(target,this->bufferSize,this->bufferData,GL_STATIC_DRAW);   
 }
 
 void BufferData::bind() {
 	if (this->bufferName == 0) {
 		do_register();
 	}
-	glBindBuffer(GL_ARRAY_BUFFER, this->bufferName);
+	glBindBuffer(target, this->bufferName);
 }
 	
 void BufferData::unbind() {
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(target, 0);
 }

@@ -40,6 +40,7 @@ public :
 	static int texCoordHandle;
 	static int texture0Handle;
 	static int texture1Handle;
+	static int normalHandle;
 	Shader() {
 		programHandle = 0;
 		colorVector[0] = 1.0f;

@@ -8,6 +8,7 @@ class Renderable {
 private :
 	Shader * shader;
 	BufferData * bufferData;
+	BufferData * indexBufferData;
 	Texture * texture;
 	Texture * secondaryTexture;
 	unsigned int nbFloatPerVertex;
@@ -20,6 +21,7 @@ public :
 		texture = NULL;
 		secondaryTexture = NULL;
 		nbFloatPerVertex = 5;
+		indexBufferData = NULL;
 	}
 	void setShader(Shader * shader) { this->shader = shader;};
 	Shader * getShader() { return shader;};
@@ -32,6 +34,6 @@ public :
 
 	unsigned int getNbFloatPerVertex() { return nbFloatPerVertex; } 
 	void draw();
-	static Renderable * createRenderable(Shader * shader, Texture * texture, float * vertexBuffer, unsigned int  triangleCount);
+	static Renderable * createRenderable(Shader * shader, Texture * texture, float * vertexBuffer, unsigned int  triangleCount, unsigned int * indexBuffer = NULL, int nbFloatPerVertex = 5);
 	glm::mat4 model;
 };

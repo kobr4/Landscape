@@ -12,6 +12,7 @@ int Shader::vertexPositionHandle = 1;
 int Shader::texCoordHandle = 2;
 int Shader::texture0Handle = 0;
 int Shader::texture1Handle = 1;
+int Shader::normalHandle = 3;
 
 Shader * Shader::blurHorizontalShader = NULL;
 Shader * Shader::blurVerticalShader = NULL;
@@ -294,6 +295,7 @@ void Shader::do_register() {
 
 	glBindAttribLocation(this->programHandle, Shader::vertexPositionHandle, "a_Position");
 	glBindAttribLocation(this->programHandle, Shader::texCoordHandle, "a_TexCoord");
+	glBindAttribLocation(this->programHandle, Shader::normalHandle, "a_Normal");
 
 	glLinkProgram(this->programHandle);
 
