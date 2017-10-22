@@ -59,6 +59,8 @@ void Renderable::draw() {
 	}
 
 	glDisableVertexAttribArray(Shader::normalHandle);
+	glDisableVertexAttribArray(Shader::vertexPositionHandle);
+	glDisableVertexAttribArray(Shader::texCoordHandle);
 
 	if (this->bufferData != NULL) {
 		this->bufferData->unbind();

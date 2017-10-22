@@ -16,7 +16,7 @@ vec4 ResolveColor(in vec4 point) {\
 	float test = b*b - 4.0*a*c;\
 	if (test >= 0.0) {\
 		vec4  lightColor  =  texture2D(my_color_texture, v_texture_coordinate);\
-		if (lightColor.x < 0.57) {lightColor = vec4(0.0,0.0,0.0,0.0);}\
+		if (lightColor.x < 0.57) {lightColor = vec4(0.0,0.0,0.0,1.0);}\
 		else {lightColor = lightColor * lightColor + vec4(0.2,0.2,0.2,0.0);}\
 		vec4 fogColor = vec4(0.529, 0.808, 0.922,1.0);\
 		vec4 pc1 = p2 + ((-b + sqrt(test)) / 2 * a) * d;\
@@ -25,7 +25,7 @@ vec4 ResolveColor(in vec4 point) {\
 		return (1.0 - f)*fogColor + f * lightColor;\
 	} else {\
 		vec4  color  =  texture2D(my_color_texture, v_texture_coordinate);\
-		if (color.x < 0.57) {color = vec4(0.0,0.0,0.0,0.0);}\
+		if (color.x < 0.57) {color = vec4(0.0,0.0,0.0,1.0);}\
 		else {color = color * color + vec4(0.2,0.2,0.2,0.0);}\
 		return color;\
 	}\
