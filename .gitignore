@@ -37,6 +37,7 @@
 *.vcxproj.filters
 *.suo
 *.sdf
+*.opensdf
 
 #Debug / Release directory
 Debug/
